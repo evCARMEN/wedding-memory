@@ -1,0 +1,2 @@
+/* Zusätzliche Styles (Tailwind ist via CDN geladen) */
+.prose { max-width: 70ch; }

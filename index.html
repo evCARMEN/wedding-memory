@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hochzeits‑Memory</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%23f472b6'/%3E%3Ctext x='50' y='58' font-size='48' text-anchor='middle' fill='white'%3E❤%3C/text%3E%3C/svg%3E">
+  <!-- Tailwind via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Kleine Feinheiten */
+    .card { perspective: 1000px; }
+    .card-inner { transition: transform 0.4s; transform-style: preserve-3d; }
+    .card.flipped .card-inner { transform: rotateY(180deg); }
+    .card-face { backface-visibility: hidden; }
+    .card-face.back { transform: rotateY(180deg); }
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50 text-gray-900">
+  <div id="root"></div>
+
+  <!-- React & Babel (no build) -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Firebase compat SDK (no build) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
+
+  <!-- PDF + QR -->
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="./qrcode.min.js"></script>
+
+  <!-- Deine Firebase Config (füllen!) -->
+  <script src="./firebase-config.js"></script>
+
+  <!-- App -->
+  <script type="text/babel" src="./app.js"></script>
+</body>
+</html>
