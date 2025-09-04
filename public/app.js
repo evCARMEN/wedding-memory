@@ -445,23 +445,34 @@ function CreateEvent({ onCreated }) {
   const [date, setDate] = useState('');
   const [organizerName, setOrganizerName] = useState('');
   const [days, setDays] = useState(30);
+  const [error, setError] = useState(null); // NEU: Fehlerzustand
 
   async function create() {
-    const id = randomId(8);
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + Number(days)*24*60*60*1000);
-    await db.collection('events').doc(id).set({
-      name, date, organizerName, brandingVisible: true, uploadsEnabled: false,
-      isPro: false, crowdfundingTargetCents: 4000, crowdfundingRaisedCents: 0,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      expiresAt: firebase.firestore.Timestamp.fromDate(expiresAt)
-    });
-    onCreated(id);
+    try {
+      setError(null); // Fehler zurücksetzen
+      const id = randomId(8);
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + Number(days)*24*60*60*1000);
+      await db.collection('events').doc(id).set({
+        name, date, organizerName, brandingVisible: true, uploadsEnabled: false,
+        isPro: false, crowdfundingTargetCents: 4000, crowdfundingRaisedCents: 0,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        expiresAt: firebase.firestore.Timestamp.fromDate(expiresAt)
+      });
+      onCreated(id);
+    } catch (e) {
+      setError(e.message); // Fehler speichern
+    }
   }
 
   return (
     <div className="max-w-md mx-auto p-4">
       <h2 className="text-xl font-semibold mb-2">Neues Event</h2>
+      {error && (
+        <div className="mb-2 p-2 bg-red-100 border border-red-300 text-red-800 rounded">
+          Fehler beim Erstellen des Events: {error}
+        </div>
+      )}
       <label className="block mb-2">Eventname
         <input className="mt-1 w-full border rounded p-2" value={name} onChange={e=>setName(e.target.value)} />
       </label>
@@ -478,6 +489,7 @@ function CreateEvent({ onCreated }) {
     </div>
   );
 }
+
 
 function App() {
   const [eventId, setEventId] = useState(null);
