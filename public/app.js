@@ -438,6 +438,13 @@ function EventPage({ eventId }) {
             <li key={i} className="flex justify-between">
               <span>{i+1}. {p.name}</span>
               <span className="font-mono">{(p.timeMs/1000).toFixed(1)}s</span>
+                             </li>
+          ))}
+        </ol>
+      </section>
+    </div>
+  );
+}
 
 
 function CreateEvent({ onCreated }) {
