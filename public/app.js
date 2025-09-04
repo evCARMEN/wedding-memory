@@ -44,17 +44,19 @@ function useMemoryDeck(images) {
 }
 
 function MemoryGame({ eventId, onFinished }) {
-  const [images, setImages] = useState([]);
-  const [deck, setDeck] = useState([]);
-  const [flipped, setFlipped] = useState([]); // ids
-  const [matched, setMatched] = useState(new Set());
-  const [running, setRunning] = useState(false);
-  const [ms, setMs] = useState(0);
-  const timerRef = useRef(null);
+  const [images, setImages] = React.useState([]);
+  const [flipped, setFlipped] = React.useState([]); // ids
+  const [matched, setMatched] = React.useState(new Set());
+  const [running, setRunning] = React.useState(false);
+  const [ms, setMs] = React.useState(0);
+  const timerRef = React.useRef(null);
 
-  useEffect(() => {
-    const unsub = db.collection('events').doc(eventId).collection('cardImages')
-      .orderBy('createdAt', 'desc')
+  // Firestore: lade Kartenbilder
+  React.useEffect(() => {
+    const unsub = db.collection("events")
+      .doc(eventId)
+      .collection("cardImages")
+      .orderBy("createdAt", "desc")
       .onSnapshot(snap => {
         const arr = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setImages(arr);
@@ -62,20 +64,27 @@ function MemoryGame({ eventId, onFinished }) {
     return () => unsub();
   }, [eventId]);
 
-  useEffect(() => {
-    const d = useMemoryDeck(images);
-    setDeck(d);
-    setFlipped([]); setMatched(new Set()); setMs(0); setRunning(false);
-    if (timerRef.current) clearInterval(timerRef.current);
-  }, [images.map(i=>i.imageUrl).join('|')]);
+  // ✅ Deck wird über Hook berechnet (nicht in useEffect!)
+  const deck = useMemoryDeck(images);
 
-  useEffect(() => {
+  // Reset, wenn sich das Deck ändert
+  React.useEffect(() => {
+    setFlipped([]);
+    setMatched(new Set());
+    setMs(0);
+    setRunning(false);
+    if (timerRef.current) clearInterval(timerRef.current);
+  }, [deck]);
+
+  // Timer laufen lassen
+  React.useEffect(() => {
     if (running) {
       timerRef.current = setInterval(() => setMs(m => m + 100), 100);
     }
     return () => timerRef.current && clearInterval(timerRef.current);
   }, [running]);
 
+  // Karte umdrehen
   function flip(card) {
     if (!running) setRunning(true);
     if (matched.has(card.key)) return;
@@ -88,14 +97,13 @@ function MemoryGame({ eventId, onFinished }) {
     if (next.length === 2) {
       const [a, b] = next;
       if (a.key === b.key) {
-        // match
+        // Treffer
         const nm = new Set(matched);
         nm.add(a.key);
         setTimeout(() => {
           setMatched(nm);
           setFlipped([]);
-          if (nm.size === deck.length/2) {
-            // finished
+          if (nm.size === deck.length / 2) {
             setRunning(false);
             onFinished && onFinished(ms);
           }
@@ -112,11 +120,15 @@ function MemoryGame({ eventId, onFinished }) {
         {deck.map(card => {
           const isFlipped = flipped.some(f => f.id === card.id) || matched.has(card.key);
           return (
-            <div key={card.id} className={"card bg-white rounded-xl shadow " + (isFlipped ? "flipped": "")} onClick={() => flip(card)}>
+            <div
+              key={card.id}
+              className={"card bg-white rounded-xl shadow " + (isFlipped ? "flipped" : "")}
+              onClick={() => flip(card)}
+            >
               <div className="card-inner relative h-24 sm:h-28 md:h-32 rounded-xl">
                 <div className="card-face front absolute inset-0 bg-pink-300 rounded-xl flex items-center justify-center text-white text-2xl font-bold">❤</div>
                 <div className="card-face back absolute inset-0 rounded-xl overflow-hidden">
-                  <img src={card.url} alt="card" className="w-full h-full object-cover"/>
+                  <img src={card.url} alt="card" className="w-full h-full object-cover" />
                 </div>
               </div>
             </div>
@@ -124,11 +136,12 @@ function MemoryGame({ eventId, onFinished }) {
         })}
       </div>
       <div className="text-center mt-3">
-        <span className="font-mono text-lg">{(ms/1000).toFixed(1)}s</span>
+        <span className="font-mono text-lg">{(ms / 1000).toFixed(1)}s</span>
       </div>
     </div>
   );
 }
+
 
 // --- Crowdfunding (Stripe Extension) ---
 function useCrowdfunding(eventId, targetCents=4000) {
