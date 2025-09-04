@@ -314,27 +314,26 @@ function EventPage({ eventId }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [uploadConsent, setUploadConsent] = useState(false);
   const [file, setFile] = useState(null);
-  const [cf, setCf] = useState({ sum:0, percent:0 });
   const [showAdmin, setShowAdmin] = useState(false);
 
+  // Event laden
   useEffect(() => {
-    const unsub = db.collection('events').doc(eventId).onSnapshot(s => setEvent({ id: s.id, ...s.data() }));
+    const unsub = db.collection('events').doc(eventId)
+      .onSnapshot(s => setEvent({ id: s.id, ...s.data() }));
     return () => unsub();
   }, [eventId]);
 
+  // Bestenliste laden
   useEffect(() => {
-    const unsub = db.collection('events').doc(eventId).collection('players')
-      .orderBy('timeMs', 'asc').limit(10)
+    const unsub = db.collection('events').doc(eventId)
+      .collection('players')
+      .orderBy('timeMs', 'asc')
+      .limit(10)
       .onSnapshot(s => setLeaderboard(s.docs.map(d => d.data())));
     return () => unsub();
   }, [eventId]);
 
-  useEffect(() => {
-    if (!event) return;
-    const { sum, percent } = useCrowdfunding(eventId, event.crowdfundingTargetCents || 4000);
-    // we won't actually use hook here (hooks inside effect are invalid). We directly compute in separate hook in real app.
-  }, [eventId, event?.crowdfundingTargetCents]);
-
+  // ✅ Nur EIN Hook-Aufruf, nicht im useEffect nochmal
   const cfData = useCrowdfunding(eventId, event?.crowdfundingTargetCents || 4000);
 
   async function onFinished(ms) {
@@ -344,51 +343,75 @@ function EventPage({ eventId }) {
   async function saveScore() {
     if (!name) return alert('Bitte Namen eingeben');
     await db.collection('events').doc(eventId).collection('players').add({
-      name, timeMs: finishedMs, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      name,
+      timeMs: finishedMs,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
-    setName(''); setFinishedMs(null);
+    setName('');
+    setFinishedMs(null);
   }
 
   async function uploadGuest() {
     if (!file) return;
     if (!uploadConsent) return alert('Bitte Einverständnis bestätigen');
+
     const path = `events/${eventId}/guest/${Date.now()}-${file.name}`;
     const ref = storage.ref().child(path);
     await ref.put(file);
     const url = await ref.getDownloadURL();
+
     await db.collection('events').doc(eventId).collection('guestUploads').add({
-      guestName: name || 'Gast', imageUrl: url, timestamp: firebase.firestore.FieldValue.serverTimestamp(), consent: uploadConsent
+      guestName: name || 'Gast',
+      imageUrl: url,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      consent: uploadConsent
     });
-    // Integrate into deck as new card
+
+    // Bild auch ins Deck integrieren
     await db.collection('events').doc(eventId).collection('cardImages').add({
-      imageUrl: url, uploadedBy: name || 'Gast', type: 'guest', createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      imageUrl: url,
+      uploadedBy: name || 'Gast',
+      type: 'guest',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
+
     alert('Danke für dein Foto!');
     setFile(null);
   }
 
   if (!event) return <div className="p-6">Laden…</div>;
 
-  const proActive = event.isPro || (cfData.sum >= (event.crowdfundingTargetCents||4000));
+  const proActive = event.isPro || (cfData.sum >= (event.crowdfundingTargetCents || 4000));
 
   return (
     <div className="max-w-4xl mx-auto p-4">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Hochzeits‑Memory</h1>
+          <h1 className="text-2xl font-bold">Hochzeits-Memory</h1>
           <p className="text-sm text-gray-600">{event.name} – {event.date || ''}</p>
         </div>
-        <button className="px-3 py-2 rounded bg-gray-200" // statt: onClick={()=>setShowAdmin(true)}
+        <button
+          className="px-3 py-2 rounded bg-gray-200"
           onClick={async () => {
-  const s = prompt('Admin-Secret eingeben');
-  if (!s) return;
-  const h = await (async (str)=>{ const enc=new TextEncoder().encode(str); const buf=await crypto.subtle.digest('SHA-256',enc); return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join(''); })(s);
-  const doc = await db.collection('events').doc(eventId).get();
-  if (doc.exists && doc.data().adminSecretHash === h) {
-    setShowAdmin(true);
-  } else alert('Falsches Secret');
-}}
->Admin</button>
+            const s = prompt('Admin-Secret eingeben');
+            if (!s) return;
+            const h = await (async (str)=>{
+              const enc = new TextEncoder().encode(str);
+              const buf = await crypto.subtle.digest('SHA-256', enc);
+              return Array.from(new Uint8Array(buf))
+                .map(b => b.toString(16).padStart(2,'0'))
+                .join('');
+            })(s);
+            const doc = await db.collection('events').doc(eventId).get();
+            if (doc.exists && doc.data().adminSecretHash === h) {
+              setShowAdmin(true);
+            } else {
+              alert('Falsches Secret');
+            }
+          }}
+        >
+          Admin
+        </button>
       </header>
 
       <section className="mt-4">
@@ -399,59 +422,10 @@ function EventPage({ eventId }) {
         <h3 className="font-semibold">Bestenliste</h3>
         <ol className="mt-2 space-y-1">
           {leaderboard.map((p,i) => (
-            <li key={i} className="flex justify-between"><span>{i+1}. {p.name}</span><span className="font-mono">{(p.timeMs/1000).toFixed(1)}s</span></li>
-          ))}
-        </ol>
-      </section>
+            <li key={i} className="flex justify-between">
+              <span>{i+1}. {p.name}</span>
+              <span className="font-mono">{(p.timeMs/1000).toFixed(1)}s</sp
 
-      {finishedMs !== null && (
-        <section className="mt-6 p-4 bg-white rounded-xl shadow">
-          <h3 className="font-semibold mb-2">Geschafft in {(finishedMs/1000).toFixed(1)}s – Trag dich ein</h3>
-          <div className="flex gap-2">
-            <input className="border rounded p-2 flex-1" placeholder="Dein Name" value={name} onChange={e=>setName(e.target.value)} />
-            <button className="px-4 py-2 rounded bg-emerald-600 text-white" onClick={saveScore}>Speichern</button>
-          </div>
-          {proActive && (
-            <div className="mt-4">
-              <h4 className="font-semibold">Lade dein Foto hoch</h4>
-              <div className="flex items-center gap-2 mt-2">
-                <input type="file" accept="image/*" onChange={e=>setFile(e.target.files[0])} />
-                <label className="flex items-center gap-2"><input type="checkbox" checked={uploadConsent} onChange={e=>setUploadConsent(e.target.checked)} />Einverständnis</label>
-                <button className="px-3 py-2 rounded bg-pink-600 text-white" onClick={uploadGuest}>Hochladen</button>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
-      <section className="mt-6 p-4 bg-white rounded-xl shadow">
-        <h3 className="font-semibold">Pro freischalten: Crowdfunding</h3>
-        <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-          <div className="h-3 bg-pink-500" style={{width: cfData.percent + '%'}}></div>
-        </div>
-        <div className="text-sm mt-1">{(cfData.sum/100).toFixed(2)} € von {((event.crowdfundingTargetCents||4000)/100).toFixed(2)} €</div>
-        <div className="mt-3 flex gap-2">
-          {[200, 500, 1000].map(a =>
-            <button key={a} className="px-3 py-2 rounded bg-gray-100" onClick={()=>cfData.donate(a)}>{(a/100).toFixed(2)} €</button>
-          )}
-        </div>
-        {!proActive && <div className="text-xs text-gray-500 mt-2">Uploads werden erst mit Pro freigeschaltet.</div>}
-      </section>
-
-      {showAdmin && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-4 w-full max-w-3xl">
-            <AdminPanel event={event} eventId={eventId} onClose={()=>setShowAdmin(false)} />
-          </div>
-        </div>
-      )}
-
-      <footer className="mt-8 text-center text-xs text-gray-500">
-        <a href="./privacy.html" target="_blank">Datenschutzerklärung</a>
-      </footer>
-    </div>
-  );
-}
 
 function CreateEvent({ onCreated }) {
   const [name, setName] = useState('Unsere Hochzeit');
